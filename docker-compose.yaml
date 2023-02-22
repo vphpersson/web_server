@@ -1,0 +1,44 @@
+version: "3.3"
+
+services:
+    http_mirror_server:
+        build:
+            context: ./docker/http_mirror_server/build_context
+        expose:
+            - 8080
+        environment:
+            - HTTP_MIRROR_SERVER_LOG_DIRECTORY=/var/log/http_mirror_server
+            - HTTP_MIRROR_SERVER_SOCKET_PATH=/http_mirror_socket_volume/http_socket_server.sock
+        volumes:
+            - ./docker/http_mirror_server/volumes/logs:/var/log/http_mirror_server
+            - http_mirror_socket_volume:/http_mirror_socket_volume
+    web_log_collector:
+        build:
+            context: ./docker/web_log_collector/build_context
+        expose:
+            - 8081
+        volumes:
+            - ./docker/web_log_collector/volumes/logs:/var/log/web_log_collector
+    nginx:
+        build:
+            context: ./docker/nginx/build_context
+            args:
+                NGINX_VERSION: 1.23.0
+        depends_on:
+            - http_mirror_server
+            - web_log_collector
+        ports:
+            - "80:80"
+            - "443:443"
+        volumes:
+            - ./docker/nginx/volumes/nginx.conf:/etc/nginx/nginx.conf:ro
+            - ./docker/nginx/volumes/ssl_certificate.crt:/etc/nginx/ssl_certificate.crt:ro
+            - ./docker/nginx/volumes/ssl_certificate_key.key:/etc/nginx/ssl_certificate_key.key:ro
+            - ./docker/nginx/volumes/logging.lua:/etc/nginx/lua/logging.lua:ro
+            - ./docker/nginx/volumes/resources:/resources:ro
+            - ./docker/nginx/volumes/nginx_conf.d:/etc/nginx/conf.d:ro
+            - ./docker/nginx/volumes/logs:/var/log/nginx/
+            - http_mirror_socket_volume:/http_mirror_socket_volume
+        restart: always
+volumes:
+    http_mirror_socket_volume: {}
