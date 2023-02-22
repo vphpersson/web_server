@@ -1,0 +1,6 @@
+[submodule "docker/web_log_collector/build_context/web_log_collector"]
+	path = docker/web_log_collector/build_context/web_log_collector
+	url = https://github.com/vphpersson/web_log_collector
+[submodule "docker/http_mirror_server/build_context/http_mirror_server"]
+	path = docker/http_mirror_server/build_context/http_mirror_server
+	url = https://github.com/vphpersson/http_mirror_server

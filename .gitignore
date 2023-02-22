@@ -1,0 +1,9 @@
+.idea
+/package-lock.json
+/node_modules/
+/docker/nginx/volumes/resources
+/docker/nginx/volumes/ssl_certificate.crt
+/docker/nginx/volumes/ssl_certificate_key.key
+/docker/nginx/volumes/nginx_conf.d/default_locations.conf
+/docker/nginx/volumes/logs/access.log
+/docker/nginx/volumes/logs/error.log
