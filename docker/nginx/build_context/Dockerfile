@@ -135,5 +135,5 @@ COPY --from=builder /usr/sbin/nginx /usr/sbin/nginx
 COPY --from=builder /etc/nginx/* /etc/nginx
 COPY --from=builder /usr/local/ /usr/local
 COPY --from=builder /usr/src/lua_modules/share/lua/5.1 /etc/nginx/lua
-COPY --from=builder  /usr/src/lua_modules/lib/lua/5.1/cjson.so /usr/local/lib/lua/5.1
+COPY --from=builder /usr/src/lua_modules/lib/lua/5.1/cjson.so /usr/local/lib/lua/5.1
 COPY --from=builder /usr/src/lua-resty-logger-socket/lib/ /etc/nginx/lua
