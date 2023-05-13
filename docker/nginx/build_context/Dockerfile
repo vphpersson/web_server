@@ -27,6 +27,7 @@ RUN set -eux \
         liblua5.3-dev \
         libpcre3 \
         libpcre3-dev \
+        libpcre2-dev \
         libssl-dev \
         libtool \
         libxml2 \
