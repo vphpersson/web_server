@@ -4,32 +4,86 @@ ARG NGINX_VERSION
 FROM nginx:${NGINX_VERSION} as builder
 
 ARG NGINX_VERSION
+ARG MODSEC_VERSION=3.0.8
+ARG LMDB_VERSION=0.9.29
 
-RUN apt-get update && \
-    apt-get install -y \
-        openssh-client \
+RUN set -eux \
+    ; apt-get update -qq \
+    && LD_LIBRARY_PATH="" apt-get install -y -qq --no-install-recommends --no-install-suggests \
+        cmake \
+        curl \
+        automake \
+        cmake \
+        doxygen \
+        g++ \
+        gcc \
         git \
-        wget \
-        libxml2 \
-        libxslt1-dev \
-        libpcre3 \
-        libpcre3-dev \
         zlib1g \
         zlib1g-dev \
-        openssl \
+        libcurl4-gnutls-dev \
+        libfuzzy-dev \
+        libgeoip-dev \
+        liblua5.1-dev \
+        liblua5.3-dev \
+        libpcre3-dev \
+        libpcre2-dev \
         libssl-dev \
         libtool \
-        automake \
-        gcc \
-        g++ \
-        make \
+        libxml2 \
+        libxml2-dev \
+        libxslt1-dev \
+        libyajl-dev \
         lua5.1 \
-        liblua5.1-dev \
+        make \
+        openssh-client \
+        openssl \
+        patch \
+        pkg-config \
+        ruby \
+        zlib1g-dev \
         unzip \
-    && rm -rf /var/cache/apt
+    && apt-get clean \
+    && rm -rf /var/cache/apt /var/lib/lists/*
 
-RUN wget "http://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" && \
-    tar -C /usr/src -xzvf nginx-${NGINX_VERSION}.tar.gz
+# Set up ModSecurity
+
+WORKDIR /usr/src
+
+RUN set -eux; \
+    git clone https://github.com/LMDB/lmdb --branch LMDB_${LMDB_VERSION} --depth 1; \
+    make -C lmdb/libraries/liblmdb install; \
+    strip /usr/local/lib/liblmdb*.so* \
+
+# Build ModSecurity
+RUN set -eux; \
+    git clone https://github.com/SpiderLabs/ModSecurity --branch v"${MODSEC_VERSION}" --depth 1 --recursive; \
+    cd ModSecurity; \
+    ARCH=$(gcc -print-multiarch); \
+    sed -ie "s/i386-linux-gnu/${ARCH}/g" build/ssdeep.m4; \
+    sed -ie "s/i386-linux-gnu/${ARCH}/g" build/pcre2.m4; \
+    ./build.sh; \
+    ./configure --with-yajl --with-ssdeep --with-geoip --with-pcre2 --enable-silent-rules; \
+    make install; \
+    strip /usr/local/modsecurity/lib/lib*.so*
+
+# Create ModSecurity configuration files.
+RUN set -eux; \
+    mkdir /etc/modsecurity.d; \
+    curl -sSL https://raw.githubusercontent.com/SpiderLabs/ModSecurity/v3/master/modsecurity.conf-recommended \
+         -o /etc/modsecurity.d/modsecurity.conf; \
+    curl -sSL https://raw.githubusercontent.com/SpiderLabs/ModSecurity/v3/master/unicode.mapping \
+         -o /etc/modsecurity.d/unicode.mapping
+
+# Generate/Download Diffie-Hellman parameter files
+RUN set -eux; \
+    mkdir -p /usr/share/TLS; \
+    curl -sSL https://ssl-config.mozilla.org/ffdhe2048.txt -o /usr/share/TLS/dhparam-2048.pem; \
+    curl -sSL https://ssl-config.mozilla.org/ffdhe4096.txt -o /usr/share/TLS/dhparam-4096.pem
+
+# Set up modules
+
+WORKDIR /usr/src/ModSecurity-nginx
+RUN git clone -b master --depth 1 https://github.com/SpiderLabs/ModSecurity-nginx.git
 
 WORKDIR /usr/src/lua-nginx-module
 RUN git clone https://github.com/openresty/lua-nginx-module .
@@ -44,7 +98,7 @@ RUN git clone https://github.com/cloudflare/lua-resty-logger-socket .
 
 # NOTE: Apperently the LuaRocks version that can be installed via `apt` is old and does not support some package
 # format used by one of the LuaRocks packages, so LuaRocks has to be installed separately...
-RUN wget "https://luarocks.org/releases/luarocks-3.8.0.tar.gz" && tar -C /usr/src -zxpf luarocks-3.8.0.tar.gz
+RUN curl "https://luarocks.org/releases/luarocks-3.8.0.tar.gz" && tar --gunzip --extract --directory=/usr/src
 WORKDIR /usr/src/luarocks-3.8.0
 RUN ./configure --with-lua-include=/usr/include/lua5.1 && make install
 
@@ -68,19 +122,19 @@ RUN git clone https://github.com/openresty/headers-more-nginx-module.git .
 WORKDIR /usr/src/ngx_brotli
 RUN git clone https://github.com/google/ngx_brotli.git . && git submodule update --init
 
-# Remove previously built Nginx modules and previous Nginx configuration.
-
-RUN rm -f /usr/lib/nginx/modules/*
-RUN rm -rf /etc/nginx/*
-
-# Prepare for Nginx compilation.
-
 WORKDIR /usr/src/luajit2
 RUN git clone https://github.com/openresty/luajit2 . && make install
 
 ARG LUAJIT_INC=/usr/local/include/luajit-2.1
 ARG LUAJIT_LIB=/usr/local/lib
 
+# Prepare for Nginx compilation.
+
+# Remove previously built Nginx modules and previous Nginx configuration.
+RUN rm -f /usr/lib/nginx/modules/*
+RUN rm -rf /etc/nginx/*
+
+RUN curl "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" && tar --gunzip --extract --directory=/usr/src
 WORKDIR /usr/src/nginx-${NGINX_VERSION}
 
 # Disable the `Server` response header and remove "nginx" from the error pages.
@@ -121,14 +175,44 @@ RUN ./configure \
     --add-dynamic-module=/usr/src/ngx_devel_kit \
     --add-dynamic-module=/usr/src/headers-more-nginx-module \
     --add-dynamic-module=/usr/src/ngx_brotli \
+    --add-dynamic-module=/usr/src/ModSecurity-nginx \
     --with-cc-opt='-g -O2 -fstack-protector-strong -Wformat -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -fPIC' \
     --with-ld-opt='-Wl,-z,relro -Wl,-z,now -Wl,--as-needed -pie' \
     --with-ld-opt='-Wl,-rpath,/usr/local/lib' \
     && make install
 
+FROM nginx:${NGINX_VERSION} as crs_release
+
+ARG CRS_RELEASE
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get -y install --no-install-recommends \
+      ca-certificates \
+      curl \
+      gnupg; \
+    mkdir /opt/owasp-crs; \
+    curl -SL https://github.com/coreruleset/coreruleset/archive/v${CRS_RELEASE}.tar.gz -o v${CRS_RELEASE}.tar.gz; \
+    curl -SL https://github.com/coreruleset/coreruleset/releases/download/v${CRS_RELEASE}/coreruleset-${CRS_RELEASE}.tar.gz.asc -o coreruleset-${CRS_RELEASE}.tar.gz.asc; \
+    gpg --fetch-key https://coreruleset.org/security.asc; \
+    gpg --verify coreruleset-${CRS_RELEASE}.tar.gz.asc v${CRS_RELEASE}.tar.gz; \
+    tar -zxf v${CRS_RELEASE}.tar.gz --strip-components=1 -C /opt/owasp-crs; \
+    rm -f v${CRS_RELEASE}.tar.gz coreruleset-${CRS_RELEASE}.tar.gz.asc; \
+    mv -v /opt/owasp-crs/crs-setup.conf.example /opt/owasp-crs/crs-setup.conf
+
 FROM nginx:${NGINX_VERSION}
 
+ARG MODSEC_VERSION=3.0.8
+ARG LMDB_VERSION=0.9.29
+
 RUN rm -rf /usr/lib/nginx/modules/* /etc/nginx/* /usr/local/*
+
+COPY --from=builder /usr/local/modsecurity/lib/libmodsecurity.so.${MODSEC_VERSION} /usr/local/modsecurity/lib/
+COPY --from=builder /usr/local/lib/liblmdb.so /usr/local/lib/
+COPY --from=builder /usr/share/TLS/dhparam-* /etc/ssl/certs/
+COPY --from=builder /etc/modsecurity.d/unicode.mapping /etc/modsecurity.d/unicode.mapping
+COPY --from=builder /etc/modsecurity.d/modsecurity.conf /etc/modsecurity.d/modsecurity.conf
+COPY --from=crs_release /opt/owasp-crs /opt/owasp-crs
 
 COPY --from=builder /usr/lib/nginx/modules/* /usr/lib/nginx/modules
 COPY --from=builder /usr/sbin/nginx /usr/sbin/nginx
@@ -137,3 +221,32 @@ COPY --from=builder /usr/local/ /usr/local
 COPY --from=builder /usr/src/lua_modules/share/lua/5.1 /etc/nginx/lua
 COPY --from=builder /usr/src/lua_modules/lib/lua/5.1/cjson.so /usr/local/lib/lua/5.1
 COPY --from=builder /usr/src/lua-resty-logger-socket/lib/ /etc/nginx/lua
+
+RUN set -eux; \
+    echo 'debconf debconf/frontend select Noninteractive' | debconf-set-selections; \
+    apt-get update -qq; \
+    LD_LIBRARY_PATH="" apt-get install -y -qq --no-install-recommends --no-install-suggests \
+        ca-certificates \
+        curl \
+        libcurl4-gnutls-dev \
+        libfuzzy2 \
+        liblua5.3 \
+        libxml2 \
+        libyajl2 \
+        moreutils; \
+    rm -rf /var/lib/apt/lists/*; \
+    apt-get clean; \
+    mkdir /etc/nginx/ssl; \
+    mkdir -p /tmp/modsecurity/data; \
+    mkdir -p /tmp/modsecurity/upload; \
+    mkdir -p /tmp/modsecurity/tmp; \
+    mkdir -p /usr/local/modsecurity; \
+    chown -R nginx:nginx /tmp/modsecurity; \
+    # Comment out the SecDisableBackendCompression option since it is not supported in V3
+    sed -i 's/^\(SecDisableBackendCompression .*\)/# \1/' /etc/nginx/templates/modsecurity.d/modsecurity-override.conf.template; \
+    ln -s /usr/local/modsecurity/lib/libmodsecurity.so.${MODSEC_VERSION} /usr/local/modsecurity/lib/libmodsecurity.so.3.0; \
+    ln -s /usr/local/modsecurity/lib/libmodsecurity.so.${MODSEC_VERSION} /usr/local/modsecurity/lib/libmodsecurity.so.3; \
+    ln -s /usr/local/modsecurity/lib/libmodsecurity.so.${MODSEC_VERSION} /usr/local/modsecurity/lib/libmodsecurity.so; \
+    chgrp -R 0 /var/cache/nginx/ /var/log/ /var/run/ /usr/share/nginx/ /etc/nginx/ /etc/modsecurity.d/; \
+    chmod -R g=u /var/cache/nginx/ /var/log/ /var/run/ /usr/share/nginx/ /etc/nginx/ /etc/modsecurity.d/; \
+    ln -sv /opt/owasp-crs /etc/modsecurity.d/
