@@ -98,7 +98,7 @@ RUN git clone https://github.com/cloudflare/lua-resty-logger-socket .
 
 # NOTE: Apperently the LuaRocks version that can be installed via `apt` is old and does not support some package
 # format used by one of the LuaRocks packages, so LuaRocks has to be installed separately...
-RUN curl --location "https://luarocks.org/releases/luarocks-3.8.0.tar.gz" && tar --gunzip --extract --directory=/usr/src
+RUN curl --location "https://luarocks.org/releases/luarocks-3.8.0.tar.gz" | tar --gunzip --extract --directory=/usr/src
 WORKDIR /usr/src/luarocks-3.8.0
 RUN ./configure --with-lua-include=/usr/include/lua5.1 && make install
 
@@ -134,7 +134,7 @@ ARG LUAJIT_LIB=/usr/local/lib
 RUN rm -f /usr/lib/nginx/modules/*
 RUN rm -rf /etc/nginx/*
 
-RUN curl "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" && tar --gunzip --extract --directory=/usr/src
+RUN curl "https://nginx.org/download/nginx-${NGINX_VERSION}.tar.gz" | tar --gunzip --extract --directory=/usr/src
 WORKDIR /usr/src/nginx-${NGINX_VERSION}
 
 # Disable the `Server` response header and remove "nginx" from the error pages.
