@@ -83,7 +83,7 @@ RUN set -eux; \
 # Set up modules
 
 WORKDIR /usr/src/ModSecurity-nginx
-RUN git clone -b master --depth 1 https://github.com/SpiderLabs/ModSecurity-nginx.git
+RUN git clone -b master --depth 1 https://github.com/SpiderLabs/ModSecurity-nginx.git .
 
 WORKDIR /usr/src/lua-nginx-module
 RUN git clone https://github.com/openresty/lua-nginx-module .
@@ -95,7 +95,6 @@ WORKDIR /usr/src/lua-resty-logger-socket
 RUN git clone https://github.com/cloudflare/lua-resty-logger-socket .
 
 # Install Lua modules.
-
 # NOTE: Apperently the LuaRocks version that can be installed via `apt` is old and does not support some package
 # format used by one of the LuaRocks packages, so LuaRocks has to be installed separately...
 RUN curl --location "https://luarocks.org/releases/luarocks-3.8.0.tar.gz" | tar --gunzip --extract --directory=/usr/src
@@ -108,7 +107,7 @@ RUN luarocks install base64 --tree . \
     && rm -rf /usr/share/lua/5.1/luarocks
 
 WORKDIR /usr/src/lua-resty-core
-RUN git clone https://github.com/openresty/lua-resty-core . && make install  LUA_LIB_DIR=/usr/local/share/lua/5.1/
+RUN git clone https://github.com/openresty/lua-resty-core . && make install LUA_LIB_DIR=/usr/local/share/lua/5.1/
 
 WORKDIR /usr/src/lua-resty-lrucache
 RUN git clone https://github.com/openresty/lua-resty-lrucache . && make install LUA_LIB_DIR=/usr/local/share/lua/5.1/
