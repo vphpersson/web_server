@@ -183,7 +183,7 @@ RUN ./configure \
 
 FROM nginx:${NGINX_VERSION} as crs_release
 
-ARG CRS_RELEASE
+ARG CRS_RELEASE=3.3.4
 
 RUN set -eux; \
     apt-get update; \
