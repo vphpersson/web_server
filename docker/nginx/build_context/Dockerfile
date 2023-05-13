@@ -52,7 +52,7 @@ WORKDIR /usr/src
 RUN set -eux; \
     git clone https://github.com/LMDB/lmdb --branch LMDB_${LMDB_VERSION} --depth 1; \
     make -C lmdb/libraries/liblmdb install; \
-    strip /usr/local/lib/liblmdb*.so* \
+    strip /usr/local/lib/liblmdb*.so*
 
 # Build ModSecurity
 RUN set -eux; \
