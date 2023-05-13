@@ -180,38 +180,15 @@ RUN ./configure \
     --with-ld-opt='-Wl,-rpath,/usr/local/lib' \
     && make install
 
-FROM nginx:${NGINX_VERSION} as crs_release
-
-ARG CRS_RELEASE=3.3.4
-
-RUN set -eux; \
-    apt-get update; \
-    apt-get -y install --no-install-recommends \
-      ca-certificates \
-      curl \
-      gnupg; \
-    mkdir /opt/owasp-crs; \
-    curl -SL https://github.com/coreruleset/coreruleset/archive/v${CRS_RELEASE}.tar.gz -o v${CRS_RELEASE}.tar.gz; \
-    curl -SL https://github.com/coreruleset/coreruleset/releases/download/v${CRS_RELEASE}/coreruleset-${CRS_RELEASE}.tar.gz.asc -o coreruleset-${CRS_RELEASE}.tar.gz.asc; \
-    gpg --fetch-key https://coreruleset.org/security.asc; \
-    gpg --verify coreruleset-${CRS_RELEASE}.tar.gz.asc v${CRS_RELEASE}.tar.gz; \
-    tar -zxf v${CRS_RELEASE}.tar.gz --strip-components=1 -C /opt/owasp-crs; \
-    rm -f v${CRS_RELEASE}.tar.gz coreruleset-${CRS_RELEASE}.tar.gz.asc; \
-    mv -v /opt/owasp-crs/crs-setup.conf.example /opt/owasp-crs/crs-setup.conf
-
 FROM nginx:${NGINX_VERSION}
 
 ARG MODSEC_VERSION=3.0.8
-ARG LMDB_VERSION=0.9.29
 
 RUN rm -rf /usr/lib/nginx/modules/* /etc/nginx/* /usr/local/*
 
-COPY --from=builder /usr/local/modsecurity/lib/libmodsecurity.so.${MODSEC_VERSION} /usr/local/modsecurity/lib/
-COPY --from=builder /usr/local/lib/liblmdb.so /usr/local/lib/
 COPY --from=builder /usr/share/TLS/dhparam-* /etc/ssl/certs/
 COPY --from=builder /etc/modsecurity.d/unicode.mapping /etc/modsecurity.d/unicode.mapping
 COPY --from=builder /etc/modsecurity.d/modsecurity.conf /etc/modsecurity.d/modsecurity.conf
-COPY --from=crs_release /opt/owasp-crs /opt/owasp-crs
 
 COPY --from=builder /usr/lib/nginx/modules/* /usr/lib/nginx/modules
 COPY --from=builder /usr/sbin/nginx /usr/sbin/nginx
@@ -241,11 +218,8 @@ RUN set -eux; \
     mkdir -p /tmp/modsecurity/tmp; \
     mkdir -p /usr/local/modsecurity; \
     chown -R nginx:nginx /tmp/modsecurity; \
-    # Comment out the SecDisableBackendCompression option since it is not supported in V3
-#    sed -i 's/^\(SecDisableBackendCompression .*\)/# \1/' /etc/nginx/templates/modsecurity.d/modsecurity-override.conf.template; \
     ln --symbolic --force /usr/local/modsecurity/lib/libmodsecurity.so.${MODSEC_VERSION} /usr/local/modsecurity/lib/libmodsecurity.so.3.0; \
     ln --symbolic --force /usr/local/modsecurity/lib/libmodsecurity.so.${MODSEC_VERSION} /usr/local/modsecurity/lib/libmodsecurity.so.3; \
     ln --symbolic --force /usr/local/modsecurity/lib/libmodsecurity.so.${MODSEC_VERSION} /usr/local/modsecurity/lib/libmodsecurity.so; \
     chgrp -R 0 /var/cache/nginx/ /var/log/ /var/run/ /usr/share/nginx/ /etc/nginx/ /etc/modsecurity.d/; \
-    chmod -R g=u /var/cache/nginx/ /var/log/ /var/run/ /usr/share/nginx/ /etc/nginx/ /etc/modsecurity.d/; \
-    ln -sv /opt/owasp-crs /etc/modsecurity.d/
+    chmod -R g=u /var/cache/nginx/ /var/log/ /var/run/ /usr/share/nginx/ /etc/nginx/ /etc/modsecurity.d/;
