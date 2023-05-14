@@ -207,6 +207,7 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*; \
     apt-get clean; \
     mkdir /etc/nginx/ssl; \
+    mkdir /etc/modsecurity.d; \
     mkdir -p /tmp/modsecurity/data; \
     mkdir -p /tmp/modsecurity/upload; \
     mkdir -p /tmp/modsecurity/tmp; \
