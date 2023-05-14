@@ -38,7 +38,9 @@ services:
             - ./docker/nginx/volumes/resources:/resources:ro
             - ./docker/nginx/volumes/nginx_conf.d:/etc/nginx/conf.d:ro
             - ./docker/nginx/volumes/modsecurity_setup.conf:/etc/modsecurity.d/setup.conf:ro
+            - ./docker/nginx/volumes/modsecurity.conf:/etc/modsecurity.d/modsecurity.conf:ro
             - ./docker/nginx/volumes/crs_setup.conf:/etc/modsecurity.d/crs_setup.conf:ro
+            - ./docker/nginx/volumes/unicode.mapping:/etc/modsecurity.d/unicode.mapping:ro
             - ./docker/nginx/volumes/crs_rules:/etc/modsecurity.d/rules:ro
             - ./docker/nginx/volumes/logs:/var/log/nginx/
             - http_mirror_socket_volume:/http_mirror_socket_volume
