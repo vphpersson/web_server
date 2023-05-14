@@ -55,6 +55,7 @@ RUN set -eux; \
     make -C lmdb/libraries/liblmdb install; \
     strip /usr/local/lib/liblmdb*.so*
 
+# TODO: Do I need geoip? How do I use `ssdeep`?
 # Build ModSecurity
 RUN set -eux; \
     git clone https://github.com/SpiderLabs/ModSecurity --branch v"${MODSEC_VERSION}" --depth 1 --recursive; \
@@ -67,14 +68,7 @@ RUN set -eux; \
     make install; \
     strip /usr/local/modsecurity/lib/lib*.so*
 
-# Create ModSecurity configuration files.
-RUN set -eux; \
-    mkdir /etc/modsecurity.d; \
-    curl -sSL https://raw.githubusercontent.com/SpiderLabs/ModSecurity/v3/master/modsecurity.conf-recommended \
-         -o /etc/modsecurity.d/modsecurity.conf; \
-    curl -sSL https://raw.githubusercontent.com/SpiderLabs/ModSecurity/v3/master/unicode.mapping \
-         -o /etc/modsecurity.d/unicode.mapping
-
+# TODO: Not sure what the purpose of this is.
 # Generate/Download Diffie-Hellman parameter files
 RUN set -eux; \
     mkdir -p /usr/share/TLS; \
@@ -179,6 +173,7 @@ RUN ./configure \
     --with-cc-opt='-g -O2 -fstack-protector-strong -Wformat -Werror=format-security -Wp,-D_FORTIFY_SOURCE=2 -fPIC' \
     --with-ld-opt='-Wl,-z,relro -Wl,-z,now -Wl,--as-needed -pie' \
     --with-ld-opt='-Wl,-rpath,/usr/local/lib' \
+    --with-ld-opt='-lpcre' \
     && make install
 
 FROM nginx:${NGINX_VERSION}
@@ -188,8 +183,6 @@ ARG MODSEC_VERSION=3.0.8
 RUN rm -rf /usr/lib/nginx/modules/* /etc/nginx/* /usr/local/*
 
 COPY --from=builder /usr/share/TLS/dhparam-* /etc/ssl/certs/
-COPY --from=builder /etc/modsecurity.d/unicode.mapping /etc/modsecurity.d/unicode.mapping
-COPY --from=builder /etc/modsecurity.d/modsecurity.conf /etc/modsecurity.d/modsecurity.conf
 
 COPY --from=builder /usr/lib/nginx/modules/* /usr/lib/nginx/modules
 COPY --from=builder /usr/sbin/nginx /usr/sbin/nginx
