@@ -35,7 +35,7 @@ services:
             - ./docker/nginx/volumes/ssl_certificate.crt:/etc/nginx/ssl_certificate.crt:ro
             - ./docker/nginx/volumes/ssl_certificate_key.key:/etc/nginx/ssl_certificate_key.key:ro
             - ./docker/nginx/volumes/logging.lua:/etc/nginx/lua/logging.lua:ro
-            - ./docker/nginx/volumes/resources:/resources:ro
+            - ./docker/nginx/volumes/resources:/etc/ngnix/resources:ro
             - ./docker/nginx/volumes/nginx_conf.d:/etc/nginx/conf.d:ro
             - ./docker/nginx/volumes/modsecurity_setup.conf:/etc/modsecurity.d/setup.conf:ro
             - ./docker/nginx/volumes/modsecurity.conf:/etc/modsecurity.d/modsecurity.conf:ro
