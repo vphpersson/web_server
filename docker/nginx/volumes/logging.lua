@@ -15,8 +15,11 @@ end
 
 local data = {request={}, response={}}
 
+data["server_addr"] = ngx.var.server_addr
+data["server_port"] = ngx.var.server_port
 data["remote_addr"] = ngx.var.remote_addr
 data["remote_port"] = ngx.var.remote_port
+data["scheme"] = ngx.var.scheme
 data["body_file"] = ngx.req.get_body_file()
 
 data["request"]["raw_base64"] = base64.encode(ngx.req.raw_header() .. (ngx.ctx.my_request_body or ''))
