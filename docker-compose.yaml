@@ -32,8 +32,6 @@ services:
             - "443:443"
         volumes:
             - ./docker/nginx/volumes/nginx.conf:/etc/nginx/nginx.conf:ro
-            - ./docker/nginx/volumes/ssl_certificate.crt:/etc/nginx/ssl_certificate.crt:ro
-            - ./docker/nginx/volumes/ssl_certificate_key.key:/etc/nginx/ssl_certificate_key.key:ro
             - ./docker/nginx/volumes/logging.lua:/etc/nginx/lua/logging.lua:ro
             - ./docker/nginx/volumes/resources:/etc/nginx/resources:ro
             - ./docker/nginx/volumes/nginx_conf.d:/etc/nginx/conf.d:ro
